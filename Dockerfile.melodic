@@ -1,0 +1,74 @@
+# FROM osrf/ros:melodic-desktop-full
+
+# FROM ubuntu:18.04
+
+FROM nvidia/cudagl:11.4.0-devel-ubuntu18.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+SHELL [ "/bin/bash", "-c" ]
+
+# RUN apt-get update && apt-get -y install --no-install-recommends lsb-release
+
+# RUN echo "http://pubmirrors.dal.corespace.com/ubuntu/ bionic main restricted universe multiverse" > /etc/apt/sources.list && \
+#     echo "http://pubmirrors.dal.corespace.com/ubuntu/ bionic-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+#     echo "http://pubmirrors.dal.corespace.com/ubuntu/ bionic-security main restricted universe multiverse" >> /etc/apt/sources.list && \
+#     echo "http://pubmirrors.dal.corespace.com/ubuntu/ bionic-backports main restricted universe multiverse" >> /etc/apt/sources.list && \
+#     echo "http://pubmirrors.dal.corespace.com/ubuntu/ bionic partner" >> /etc/apt/sources.list
+
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    git \
+    curl \
+    wget \
+    python-dev \
+    python-pip \
+    apt-utils \
+    software-properties-common \
+    build-essential \
+    cmake \
+    lsb-release \
+    # gedit
+
+# RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' && \
+#     apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654 && \
+#     apt-get update && \
+#     apt-get -y install --no-install-recommends ros-melodic-desktop-full python-rosdep python-catkin-tools && \
+#     apt-get -y install --no-install-recommends ros-melodic-ros-control* ros-melodic-control* ros-melodic-gazebo-ros-control* ros-melodic-moveit* && \
+#     echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc && \
+#     source ~/.bashrc && \
+#     rosdep init && \
+#     rosdep update
+
+RUN sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable `lsb_release -cs` main" > /etc/apt/sources.list.d/gazebo-stable.list' && \
+    wget https://packages.osrfoundation.org/gazebo.key -O - | sudo apt-key add - && \
+    apt-get update && \
+    apt-get -y install --no-install-recommends gazebo9 && \
+    apt-get -y upgrade libignition-math4
+
+ENV HOME /root
+
+ENV CATKIN_WS /root/catkin_ws
+
+RUN source /opt/ros/melodic/setup.bash && \ 
+    mkdir -p ${CATKIN_WS}/src && \
+    catkin init --workspace ${CATKIN_WS} && \
+    cd ${CATKIN_WS} && \
+    git clone -b melodic-devel-staging https://github.com/ros-industrial/universal_robot.git ${CATKIN_WS}/src/universal_robot && \
+    rosdep update && \
+    rosdep install --from-paths ./src --ignore-packages-from-source -y && \
+    catkin build --cmake-args -DCMAKE_BUILD_TYPE=Debug && \
+    echo "source ${CATKIN_WS}/devel/setup.bash" >> ${HOME}/.bashrc
+
+RUN echo "alias src_ros='source ${CATKIN_WS}/devel/setup.bash'" >> ${HOME}/.bashrc
+
+RUN echo "alias ariac_launcher='roslaunch uta_rvl_competition competition_environment.launch load_moveit:=true'" >> ${HOME}/.bashrc
+
+RUN echo "cd ${CATKIN_WS}" >> ${HOME}/.bashrc
+
+RUN echo "clear" >> ${HOME}/.bashrc
+
+# nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES \
+    ${NVIDIA_VISIBLE_DEVICES:-all}
+ENV NVIDIA_DRIVER_CAPABILITIES \
+    ${NVIDIA_DRIVER_CAPABILITIES:+$NVIDIA_DRIVER_CAPABILITIES,}graphics
