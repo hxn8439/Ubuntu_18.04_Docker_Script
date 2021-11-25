@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONTAINER_NAME=hamilton-container-melodic
+CONTAINER_NAME=hamilton-container-melodic-virtual
 
 IMAGE_NAME=idk
 IMAGE_TAG=melodic
