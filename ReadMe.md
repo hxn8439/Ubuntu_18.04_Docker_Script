@@ -4,4 +4,6 @@ This repository is reserved for the setting up and creating a catkin workspace f
 
 1. Refer to the repositories https://github.com/hxn8439/computer_system_design_project_Virtual and https://github.com/hxn8439/idk_planning for installation and execution instructions. 
 
+![](Docker_flow_chart.jpg)
+
 __######## Attention: This repository is closed for the senior design project and will discontinue the development as of 12/13/2021. H. Nguyen 12/13/2021###########__
