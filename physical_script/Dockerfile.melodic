@@ -1,0 +1,65 @@
+FROM ubuntu:18.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+SHELL [ "/bin/bash", "-c" ]
+
+RUN apt-get update && apt-get -y --no-install-recommends install python-dev python-pip && \ 
+    python -m pip install --upgrade pip setuptools wheel scikit-build && \
+    python -m pip install apt-mirror-updater && \
+    apt-mirror-updater -a
+
+RUN apt-get update && apt-get -y install --no-install-recommends \
+    git \
+    curl \
+    wget \
+    python-dev \
+    python-pip \
+    apt-utils \
+    software-properties-common \
+    build-essential \
+    cmake \
+    lsb-release \
+    gnupg2
+
+RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list' && \
+    curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
+    apt update && \
+    apt-get -y install --no-install-recommends ros-melodic-desktop-full python-rosdep python-catkin-tools && \
+    apt-get -y install --no-install-recommends ros-melodic-ros-control* ros-melodic-control* ros-melodic-gazebo-ros-control* ros-melodic-moveit* && \
+    echo "source /opt/ros/melodic/setup.bash" >> ~/.bashrc && \
+    source ~/.bashrc && \
+    rosdep init && \
+    rosdep update
+
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE && \
+    add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u && \
+    apt-get update && \
+    apt-get -y install --no-install-recommends librealsense2-dkms librealsense2-utils librealsense2-dev librealsense2-dbg
+
+ENV HOME /root
+
+ENV CATKIN_WS /root/catkin_ws
+
+COPY idk_planning ${CATKIN_WS}/src/idk_planning
+
+RUN python -m pip install opencv-python==4.2.0.32 opencv-contrib-python==4.2.0.32 numpy
+
+RUN source /opt/ros/melodic/setup.bash && \ 
+    mkdir -p ${CATKIN_WS}/src && \
+    catkin init --workspace ${CATKIN_WS} && \
+    cd ${CATKIN_WS} && \
+    git clone https://github.com/UniversalRobots/Universal_Robots_ROS_Driver.git src/Universal_Robots_ROS_Driver && \
+    git clone -b calibration_devel https://github.com/fmauch/universal_robot.git src/fmauch_universal_robot && \
+    git clone https://github.com/IntelRealSense/realsense-ros src/realsense-ros && \
+    apt update -qq && \
+    rosdep update && \
+    rosdep install --from-paths ./src --ignore-packages-from-source -y && \
+    catkin build --cmake-args -Wno-dev -DCMAKE_BUILD_TYPE=Debug && \
+    echo "source ${CATKIN_WS}/devel/setup.bash" >> ${HOME}/.bashrc
+
+RUN echo "cd ${CATKIN_WS}" >> ${HOME}/.bashrc && \
+    echo "clear" >> ${HOME}/.bashrc && \
+    echo "alias connect_robot='roslaunch ur_robot_driver ur5_bringup.launch robot_ip:=10.0.0.3 kinematics_config:=\$(rospack find idk_planning)/config/ur5.yaml'" >> ${HOME}/.bashrc && \
+    echo "alias connect_moveit='roslaunch ur5_moveit_config move_group.launch'" >> ${HOME}/.bashrc && \
+    echo "alias connect_realsense='roslaunch realsense2_camera rs_camera.launch depth_width:=640 depth_height:=480 depth_fps:=30 depth_format:=z16 color_width:=1280 color_height:=720 color_fps:=30 color_format:=rgb8 align_depth:=true'" >> ${HOME}/.bashrc
